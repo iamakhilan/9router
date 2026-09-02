@@ -68,6 +68,15 @@ export async function deleteApiKey(id) {
 }
 
 export async function validateApiKey(key) {
+  // Optional static API key for ephemeral cloud deployments.
+  // This key lives in the platform environment, not the SQLite database,
+  // so it survives container restarts/redeploys.
+  const staticApiKey = process.env.NINEROUTER_STATIC_API_KEY;
+
+  if (staticApiKey && key === staticApiKey) {
+    return true;
+  }
+
   const db = await getAdapter();
   const row = db.get(`SELECT isActive FROM apiKeys WHERE key = ?`, [key]);
   if (!row) return false;
