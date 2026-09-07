@@ -57,16 +57,15 @@ export async function register() {
         }
       }
 
-      // Keep the built-in token-saving switches enabled after every fresh
-      // database restore. Headroom/PXPipe still require their own runtime
-      // installation; 9Router fails open when those external services are down.
+      // Keep the three Token Saver switches shown in the dashboard enabled on
+      // every startup, including after Render wipes the ephemeral SQLite DB.
+      // This can be disabled globally with NINEROUTER_AUTO_ENABLE_TOKEN_SAVERS=false.
       if (process.env.NINEROUTER_AUTO_ENABLE_TOKEN_SAVERS !== "false") {
         const { updateSettings } = await import("@/lib/db/repos/settingsRepo.js");
         await updateSettings({
           rtkEnabled: true,
           headroomEnabled: true,
           cavemanEnabled: true,
-          ponytailEnabled: true,
         });
       }
     } catch (e) {
