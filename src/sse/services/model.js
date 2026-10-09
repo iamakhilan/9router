@@ -18,10 +18,29 @@ for (const entry of REGISTRY) {
 
 export function parseModel(modelStr) {
   const parsed = parseModelCore(modelStr);
+  let normalized = parsed;
+
   if (parsed?.providerAlias && LOCAL_PROVIDER_ALIASES[parsed.providerAlias]) {
-    return { ...parsed, provider: LOCAL_PROVIDER_ALIASES[parsed.providerAlias] };
+    normalized = { ...parsed, provider: LOCAL_PROVIDER_ALIASES[parsed.providerAlias] };
   }
-  return parsed;
+
+  // Some clients configure NVIDIA's namespaced model ID as "nvidia/<model>".
+  // parseModelCore treats the first segment as the provider, leaving a bare
+  // model name (e.g. "nemotron-3-ultra-550b-a55b") that NVIDIA does not serve.
+  // Restore the registry's full upstream ID when this is an unambiguous NVIDIA
+  // model. Keep already namespaced IDs and unrelated providers unchanged.
+  if (normalized?.provider === "nvidia" && typeof normalized.model === "string" && !normalized.model.includes("/")) {
+    const suffixMatch = normalized.model.match(/(\\([^()]+\\)\\s*)$/);
+    const suffix = suffixMatch?.[0] || "";
+    const baseModel = suffix ? normalized.model.slice(0, suffixMatch.index).trim() : normalized.model;
+    const nvidia = REGISTRY.find((entry) => entry.id === "nvidia");
+    const modelEntry = nvidia?.models?.find((entry) => entry.id.endsWith(`/${baseModel}`));
+    if (modelEntry) {
+      normalized = { ...normalized, model: modelEntry.id + suffix };
+    }
+  }
+
+  return normalized;
 }
 
 /**
