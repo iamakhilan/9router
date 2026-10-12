@@ -157,6 +157,13 @@ async function hasValidApiKey(request) {
 async function canAccessPublicLlmApi(request) {
   if (isLocalRequest(request)) return true;
   if (await hasValidCliToken(request)) return true;
+
+  // Opt-in anonymous inference for single-user/private deployments.
+  // This deliberately affects only LLM inference routes, never dashboard/admin APIs.
+  // Public endpoints can be discovered or abused; keep provider credentials server-side
+  // and use edge/runtime rate limits when enabling this mode.
+  if (process.env.NINEROUTER_ALLOW_ANONYMOUS_INFERENCE === "true") return true;
+
   return await hasValidApiKey(request);
 }
 
