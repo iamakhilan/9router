@@ -68,9 +68,11 @@ export async function handleChat(request, clientRawRequest = null) {
     log.debug("AUTH", "No API key provided (local mode)");
   }
 
-  // Enforce API key if enabled in settings
+  // Enforce API keys unless anonymous inference is explicitly enabled for this deployment.
+  // The proxy guard uses the same opt-in; keep this handler-level check aligned with it.
   const settings = await getSettings();
-  if (settings.requireApiKey) {
+  const allowAnonymousInference = process.env.NINEROUTER_ALLOW_ANONYMOUS_INFERENCE === "true";
+  if (settings.requireApiKey && !allowAnonymousInference) {
     if (!apiKey) {
       log.warn("AUTH", "Missing API key (requireApiKey=true)");
       return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Missing API key");
@@ -80,6 +82,8 @@ export async function handleChat(request, clientRawRequest = null) {
       log.warn("AUTH", "Invalid API key (requireApiKey=true)");
       return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Invalid API key");
     }
+  } else if (allowAnonymousInference && !apiKey) {
+    log.debug("AUTH", "Anonymous inference enabled by NINEROUTER_ALLOW_ANONYMOUS_INFERENCE");
   }
 
   if (!modelStr) {
