@@ -56,6 +56,7 @@ function localRequest(pathname, headers = {}) {
 describe("dashboard guard public LLM API access", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.NINEROUTER_ALLOW_ANONYMOUS_INFERENCE;
     process.env.NINEROUTER_PEER_TOKEN = PEER_TOKEN;
     mocks.getSettings.mockResolvedValue({ requireLogin: true });
     mocks.validateApiKey.mockResolvedValue(false);
@@ -130,6 +131,20 @@ describe("dashboard guard public LLM API access", () => {
 
     expect(response.status).toBe(401);
     expect(response.body.error).toBe("API key required for remote API access");
+  });
+
+
+  it("allows remote inference without a caller API key only when anonymous mode is enabled", async () => {
+    process.env.NINEROUTER_ALLOW_ANONYMOUS_INFERENCE = "true";
+    const response = await proxy(request("/v1/chat/completions", { host: "router.example.com" }));
+    expect(response).toBe(mocks.nextResponse);
+    expect(mocks.validateApiKey).not.toHaveBeenCalled();
+  });
+
+  it("does not allow anonymous mode to bypass dashboard/admin authentication", async () => {
+    process.env.NINEROUTER_ALLOW_ANONYMOUS_INFERENCE = "true";
+    const response = await proxy(request("/api/providers", { host: "router.example.com" }));
+    expect(response.status).toBe(401);
   });
 
   it("allows remote /responses rewrite with a valid API key", async () => {
